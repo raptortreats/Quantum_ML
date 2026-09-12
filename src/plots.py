@@ -108,18 +108,19 @@ def save_probability_comparison(
     path: Path,
 ) -> Path:
     apply_style()
-    fig, ax = plt.subplots(figsize=(8.4, 3.8))
+    fig, ax = plt.subplots(figsize=(8.8, 3.9))
     xs = np.arange(len(target))
     ax.bar(xs - 0.18, target, width=0.36, color=INK, alpha=0.85, label="target π(x)")
     ax.bar(xs + 0.18, model, width=0.36, color=TEAL, alpha=0.9, label="model pθ(x)")
-    ax.set_xticks(valid_indices)
-    ax.set_xticklabels([bitstring(int(i), n_qubits) for i in valid_indices], rotation=40, ha="right")
-    ax.set_xlabel("computational basis (valid BAS labels shown)")
+    labels = [bitstring(i, n_qubits) for i in xs]
+    ax.set_xticks(xs)
+    ax.set_xticklabels(labels, rotation=60, ha="right", fontsize=8)
+    for tick, idx in zip(ax.get_xticklabels(), xs):
+        tick.set_color(INK if idx in set(int(i) for i in valid_indices) else "#94a3b8")
+    ax.set_xlabel("computational basis  (dark labels = valid BAS)")
     ax.set_ylabel("probability")
     ax.set_title("Target vs trained QCBM")
-    ax.legend(frameon=False)
-    for idx in valid_indices:
-        ax.axvline(idx, color="#cbd5e1", lw=0.6, zorder=0)
+    ax.legend(frameon=False, loc="upper right")
     fig.tight_layout()
     path.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(path)
@@ -162,7 +163,8 @@ def save_model_samples(
 def save_circuit_diagram(qnode, weights, path: Path) -> Path:
     apply_style()
     fig, _ax = qml_draw(qnode, weights)
-    fig.suptitle("Strongly entangling QCBM ansatz", color=INK, y=0.98)
+    fig.set_size_inches(11.5, 3.6)
+    fig.suptitle("Strongly entangling QCBM ansatz (4 qubits × 4 layers)", color=INK, y=1.02)
     path.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(path, bbox_inches="tight")
     plt.close(fig)
@@ -172,4 +174,7 @@ def save_circuit_diagram(qnode, weights, path: Path) -> Path:
 def qml_draw(qnode, weights):
     import pennylane as qml
 
-    return qml.draw_mpl(qnode, decimals=None, style="black_white")(weights)
+    try:
+        return qml.draw_mpl(qnode, decimals=None, style="black_white", level="device")(weights)
+    except TypeError:
+        return qml.draw_mpl(qnode, decimals=None, style="black_white")(weights)

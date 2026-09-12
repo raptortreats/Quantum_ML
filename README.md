@@ -2,7 +2,7 @@
 
 A notebook-first portfolio project: train a **Quantum Circuit Born Machine (QCBM)** to learn the 2×2 **Bars-and-Stripes** distribution on a PennyLane CPU simulator.
 
-The model is a parameterized 4-qubit circuit. Measuring it in the computational basis defines a generative distribution over 16 bitstrings. Training (PyTorch Adam) pushes that Born distribution onto the six legal BAS patterns.
+The model is a parameterized 4-qubit circuit. Measuring it in the computational basis defines a generative distribution over 16 bitstrings. Training (PyTorch Adam) pushes that Born distribution onto the six legal BAS patterns. On the committed seed this run reaches **KL ≈ 0** and **P(valid) ≈ 1** in under 160 Adam steps.
 
 <p align="center">
   <img src="figures/target_bas_patterns.png" width="720" alt="Six valid 2x2 Bars-and-Stripes patterns">
@@ -54,7 +54,7 @@ pip install -r requirements.txt
 jupyter notebook notebooks/qcbm_bars_and_stripes.ipynb
 ```
 
-Run every cell in order. The notebook writes the same figures under `figures/`.
+Run every cell in order. The notebook writes the same figures under `figures/`. The copy in this repo is already executed so GitHub renders the plots without you running anything.
 
 Optional, without Jupyter:
 
