@@ -1,8 +1,13 @@
-# Quantum Circuit Born Machine
+# Quantum_ML
 
-A notebook-first portfolio project: train a **Quantum Circuit Born Machine (QCBM)** to learn the 2×2 **Bars-and-Stripes** distribution on a PennyLane CPU simulator.
+Two complementary **notebook-first** demos on CPU simulators, in one repo:
 
-The model is a parameterized 4-qubit circuit. Measuring it in the computational basis defines a generative distribution over 16 bitstrings. Training (PyTorch Adam) pushes that Born distribution onto the six legal BAS patterns. On the committed seed this run reaches **KL ≈ 0** and **P(valid) ≈ 1** in under 160 Adam steps.
+| Track | Model | Data | Stack |
+| --- | --- | --- | --- |
+| **Generative** | Quantum Circuit Born Machine (QCBM) | 2×2 Bars-and-Stripes | PennyLane + PyTorch |
+| **Predictive** | Quantum kernel SVM (`QSVC`) | curated [BBBP](https://doi.org/10.1039/C7SC02664A) subset | Qiskit + Aer + RDKit |
+
+The generative notebook learns a discrete distribution. The predictive notebook classifies blood–brain barrier labels from compressed Morgan fingerprints. Together they are a small portfolio of *the shape* of molecular generative / QSAR work — not a docking pipeline and **not** a claim of quantum advantage.
 
 <p align="center">
   <img src="figures/target_bas_patterns.png" width="720" alt="Six valid 2x2 Bars-and-Stripes patterns">
@@ -13,37 +18,46 @@ The model is a parameterized 4-qubit circuit. Measuring it in the computational 
 </p>
 
 <p align="center">
-  <img src="figures/model_samples.png" width="720" alt="Samples from the trained QCBM">
+  <img src="figures/bbbp_kernel_heatmaps.png" width="720" alt="Aer fidelity kernel heatmaps on curated BBBP">
 </p>
 
-## Problem
+<p align="center">
+  <img src="figures/bbbp_roc.png" width="360" alt="QSVC ROC on the curated BBBP test split">
+  <img src="figures/bbbp_confusion_matrix.png" width="320" alt="QSVC confusion matrix">
+</p>
 
-Generative models learn a distribution \(P(x)\) from which new samples can be drawn. Here each \(x\) is a small binary image. The task is deliberately tiny: recover a known discrete support well enough that most shots land on a valid bar or stripe, and the learned probabilities match the uniform target.
+<p align="center">
+  <img src="figures/bbbp_metrics_table.png" width="720" alt="QSVC vs RBF SVM metrics on the curated hold-out">
+</p>
 
-That is the same *shape* of problem as learning a distribution over molecular fingerprints or other on/off descriptors — without pretending that four qubits replace a chemistry stack.
+## 1. Generative — QCBM on Bars-and-Stripes
 
-## Method
+A parameterized 4-qubit circuit. Measuring it in the computational basis defines a generative distribution over 16 bitstrings. Training (PyTorch Adam) pushes that Born distribution onto the six legal BAS patterns. On the committed seed this run reaches **KL ≈ 0** and **P(valid) ≈ 1** in under 160 Adam steps.
 
-A QCBM prepares a pure state \(|\psi_\theta\rangle\) and uses the Born rule
+See [`notebooks/qcbm_bars_and_stripes.ipynb`](notebooks/qcbm_bars_and_stripes.ipynb).
 
-\[
-p_\theta(x) = \lvert\langle x\mid\psi_\theta\rangle\rvert^2
-\]
+**Ansatz** — PennyLane `StronglyEntanglingLayers` (4 qubits × 4 layers)  
+**Device** — `default.qubit` (exact CPU statevector)  
+**Loss** — \(\mathrm{KL}(\pi \,\|\, p_\theta)\) on the full 16-outcome vector
 
-as the generative model ([Liu & Wang, 2018](https://doi.org/10.1103/PhysRevA.98.062324); [Benedetti et al., 2019](https://doi.org/10.1038/s41534-019-0157-8)).
+2×2 BAS is the default because \(2^4 = 16\) amplitudes are cheap. 4×4 BAS (16 qubits, 30 valid patterns) is an optional extension noted in that notebook.
 
-This repo uses:
+## 2. Predictive — quantum kernel on BBBP
 
-- **Ansatz** — PennyLane `StronglyEntanglingLayers` (single-qubit rotations + ring CNOTs) on 4 qubits, 4 layers
-- **Device** — `default.qubit` (exact CPU statevector; no hardware backend)
-- **Loss** — \(\mathrm{KL}(\pi \,\|\, p_\theta)\) on the full 16-outcome probability vector
-- **Optimizer** — `torch.optim.Adam`
+Blood–brain barrier penetration is a public binary QSAR task ([Martins et al., 2012](https://doi.org/10.1021/ci300124c); MoleculeNet / DeepChem CSV). The full file has ~2 050 compounds. A 4-qubit kernel cannot see that space, so the notebook uses a **documented, stratified subset of 100 molecules** (50 penetrant / 50 non-penetrant):
 
-2×2 BAS is the default because \(2^4 = 16\) amplitudes are cheap and training is reliable. 4×4 BAS (16 qubits, 30 valid patterns) is an optional extension; at that width you typically switch from exact KL to a sample-based loss such as MMD.
+1. Drop unparseable SMILES and duplicate structures.
+2. Morgan fingerprints (RDKit, radius 2, 2048 bits).
+3. Keep molecules a cheap 24-bit logistic model already calls high-confidence.
+4. Balanced sample, seed 21; stratified 75 / 25 split.
+5. Re-select bits and fit PCA **on train only** → 4 angles in \([0, \pi]\).
+6. Encode with a 4-qubit `zz_feature_map`, evaluate \(K(x,y)=|\langle\phi(x)|\phi(y)\rangle|^2\) on **Aer statevector**, classify with Qiskit ML `QSVC`.
+
+On the committed seed the curated hold-out scores about **accuracy 0.84 / AUC 0.94**. A classical RBF SVM on the *same four PCA angles* is reported beside it (usually a bit higher). That is a clean demo on a biased slice — **not** a MoleculeNet scaffold-split result and not evidence that quantum kernels win on full BBBP.
+
+See [`notebooks/qiskit_quantum_kernel_bbbp.ipynb`](notebooks/qiskit_quantum_kernel_bbbp.ipynb). Curation details and every test prediction live in that notebook and in `data/bbbp_curated.csv`.
 
 ## How to run
-
-One path, top to bottom:
 
 ```bash
 git clone https://github.com/raptortreats/Quantum_ML.git
@@ -51,42 +65,57 @@ cd Quantum_ML
 python3 -m venv .venv
 source .venv/bin/activate          # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
-jupyter notebook notebooks/qcbm_bars_and_stripes.ipynb
 ```
 
-Run every cell in order. The notebook writes the same figures under `figures/`. The copy in this repo is already executed so GitHub renders the plots without you running anything.
-
-Optional, without Jupyter:
+Both notebooks are already executed so GitHub renders the plots. Re-run every cell in order, or regenerate figures from the CLI:
 
 ```bash
-source .venv/bin/activate
+# generative QCBM
+jupyter notebook notebooks/qcbm_bars_and_stripes.ipynb
 PYTHONPATH=. python -m src.train
+
+# predictive quantum kernel
+jupyter notebook notebooks/qiskit_quantum_kernel_bbbp.ipynb
+PYTHONPATH=. python -m src.run_bbbp
 ```
 
-## Bridge to drug-discovery / molecular binary distributions
+`src.run_bbbp` writes `figures/bbbp_*.png` and refreshes `data/bbbp_curated.csv`. The full MoleculeNet file is cached at `data/BBBP.csv` (DeepChem URL in the notebook if you need to re-download).
 
-Many early design problems are generative models over **discrete binary objects**: fragment occupancy, hashed fingerprint bits, or other on/off descriptors. A trained QCBM is a compact way to study that mathematical job — fit \(P(x)\) on a known support, then measure how much probability lands on “valid” strings.
+## Bridge to drug-discovery / BBB work
 
-This is a pedagogical analogy, not a docking pipeline and **not a claim of quantum advantage**. Classical generative models (VAEs, flows, diffusion) are the practical tools for chemistry today. Four simulated qubits cannot represent a drug-like molecule. What transfers is the workflow: define a binary support, train a generative model, and score validity and distribution match.
+Many early design questions are either **generative** over discrete binary objects (fragment occupancy, fingerprint bits) or **predictive** over those same descriptors (penetrant / not, active / not). The two notebooks are pedagogical stand-ins for those jobs.
+
+They are not:
+
+- a claim that QCBMs or QSVC beat VAEs, graph nets, or ECFP baselines on molecules,
+- a replacement for docking, FEP, permeability assays, or CNS MPO,
+- evidence of near-term quantum advantage.
+
+Four simulated qubits cannot represent a drug-like molecule. Classical chemistry stacks are the practical tools. What transfers is the workflow: define a small, honest representation, train a model, and report validity or accuracy *while stating the subset and the compression*.
 
 ## Project layout
 
 ```
-notebooks/qcbm_bars_and_stripes.ipynb   # primary walkthrough
-src/bas.py                              # Bars-and-Stripes support
-src/qcbm.py                             # circuit, KL training, metrics
-src/plots.py                            # README / notebook figures
-src/train.py                            # optional CLI to regenerate figures
-figures/                                # committed plots for GitHub
+notebooks/qcbm_bars_and_stripes.ipynb        # generative walkthrough
+notebooks/qiskit_quantum_kernel_bbbp.ipynb   # predictive walkthrough
+src/bas.py src/qcbm.py src/plots.py src/train.py
+src/bbbp_data.py src/qkernel.py src/bbbp_plots.py src/run_bbbp.py
+data/BBBP.csv                                # public MoleculeNet dump
+data/bbbp_curated.csv                        # 100-molecule demo slice
+figures/                                     # committed plots for GitHub
 requirements.txt
 ```
 
 ## Scope
 
-Tight on purpose: one dataset, one circuit family, one CPU simulator, one notebook. No hardware backends, no giant literature dump.
+Tight on purpose: two datasets, two circuit families, CPU simulators only, two notebooks. No hardware backends, no giant literature dump.
 
 ## References
 
 1. Liu, J.-G. & Wang, L. Differentiable learning of quantum circuit Born machines. *Phys. Rev. A* **98**, 062324 (2018).
 2. Benedetti, M. *et al.* A generative modeling approach for benchmarking and training shallow quantum circuits. *npj Quantum Inf.* **5**, 45 (2019).
-3. [PennyLane QCBM demo](https://pennylane.ai/qml/demos/tutorial_qcbm) (MMD training on larger BAS).
+3. [PennyLane QCBM demo](https://pennylane.ai/qml/demos/tutorial_qcbm).
+4. Havlíček, V. *et al.* Supervised learning with quantum-enhanced feature spaces. *Nature* **567**, 209–212 (2019).
+5. Martins, I. F. *et al.* A Bayesian approach to *in silico* blood-brain barrier penetration modeling. *J. Chem. Inf. Model.* **52**, 1686–1697 (2012).
+6. Wu, Z. *et al.* MoleculeNet: a benchmark for molecular machine learning. *Chem. Sci.* **9**, 513–530 (2018).
+7. [Qiskit Machine Learning — QSVC](https://qiskit-community.github.io/qiskit-machine-learning/stubs/qiskit_machine_learning.algorithms.QSVC.html).

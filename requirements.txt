@@ -2,6 +2,8 @@
 #   python3 -m venv .venv
 #   source .venv/bin/activate
 #   pip install -r requirements.txt
+#
+# Generative QCBM (PennyLane)
 pennylane==0.45.1
 torch==2.6.0
 numpy==2.2.6
@@ -11,3 +13,13 @@ ipykernel==6.29.5
 nbformat==5.10.4
 nbclient==0.10.2
 ipython==8.32.0
+#
+# Predictive quantum kernel (Qiskit + Aer)
+qiskit==2.5.2
+qiskit-aer==0.17.2
+qiskit-machine-learning==0.9.1
+rdkit==2026.3.6
+scikit-learn==1.9.1
+pandas==2.3.3
+pillow==12.3.0
+pylatexenc==2.11
